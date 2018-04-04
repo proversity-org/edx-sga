@@ -125,6 +125,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
             block.display_name = display_name
 
         block.start = datetime.datetime(2010, 5, 12, 2, 42, tzinfo=pytz.utc)
+        block.weight = field_data.get('weight', 0)
         modulestore().create_item(
             self.staff.username, block.location.course_key, block.location.block_type, block.location.block_id
         )
@@ -638,7 +639,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         """
         Test fetch grading data for staff members.
         """
-        block = self.make_one()
+        block = self.make_one(weight=15)
         barney = self.make_student(
             block, "barney",
             filename="foo.txt",
@@ -658,6 +659,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         assert barney_assignment['fullname'] == 'barney'
         assert barney_assignment['filename'] == 'foo.txt'
         assert barney_assignment['score'] == 10
+        assert barney_assignment['weight'] == 15
         assert barney_assignment['annotated'] == 'foo_corrected.txt'
         assert barney_assignment['comment'] == 'Good work!'
         assert barney_assignment['approved'] is True
