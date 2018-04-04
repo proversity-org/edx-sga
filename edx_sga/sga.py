@@ -779,6 +779,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             "max_score": self.max_score(),
             "upload_allowed": self.upload_allowed(submission_data=submission),
             "solution": solution,
+            'weight': self.weight,
             "base_asset_url": StaticContent.get_base_url_path_for_course_assets(self.location.course_key),
         }
 

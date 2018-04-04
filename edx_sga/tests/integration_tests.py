@@ -233,7 +233,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         """
         Test student view renders correctly.
         """
-        block = self.make_one("Custom name")
+        block = self.make_one("Custom name", weight=12)
         self.personalize(block, **self.make_student(block, 'fred'))
         fragment = block.student_view()
         render_template.assert_called_once()
@@ -256,6 +256,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         self.assertEqual(student_state['upload_allowed'], True)
         self.assertEqual(student_state['max_score'], 100)
         self.assertEqual(student_state['graded'], None)
+        assert student_state['weight'] == 12
         fragment.add_css.assert_called_once_with(
             DummyResource("static/css/edx_sga.css"))
         fragment.initialize_js.assert_called_once_with(
