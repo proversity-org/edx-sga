@@ -21,6 +21,7 @@ from courseware.models import StudentModule  # lint-amnesty, pylint: disable=imp
 from courseware.tests.factories import StaffFactory  # lint-amnesty, pylint: disable=import-error
 from django.contrib.auth.models import User  # lint-amnesty, pylint: disable=import-error
 from django.core.exceptions import PermissionDenied  # lint-amnesty, pylint: disable=import-error
+from django.db import transaction  # lint-amnesty, pylint: disable=import-error
 from django.test.utils import override_settings  # lint-amnesty, pylint: disable=import-error
 from submissions import api as submissions_api  # lint-amnesty, pylint: disable=import-error
 from submissions.models import StudentItem  # lint-amnesty, pylint: disable=import-error
@@ -111,6 +112,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         """
         Creates a XBlock SGA for testing purpose.
         """
+        weight = kw.get('weight', 0)
         field_data = DictFieldData(kw)
         block = StaffGradedAssignmentXBlock(self.runtime, field_data, self.scope_ids)
         block.location = Location(
@@ -125,7 +127,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
             block.display_name = display_name
 
         block.start = datetime.datetime(2010, 5, 12, 2, 42, tzinfo=pytz.utc)
-        block.weight = field_data.get('weight', 0)
+        block.weight = weight
         modulestore().create_item(
             self.staff.username, block.location.course_key, block.location.block_type, block.location.block_id
         )
@@ -142,51 +144,52 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
                 answer[key] = state.pop(key)
         score = state.pop('score', None)
 
-        user = User(username=name)
-        user.save()
-        profile = UserProfile(user=user, name=name)
-        profile.save()
-        if make_state:
-            module = StudentModule(
-                module_state_key=block.location,
-                student=user,
+        with transaction.atomic():
+            user = User(username=name)
+            user.save()
+            profile = UserProfile(user=user, name=name)
+            profile.save()
+            if make_state:
+                module = StudentModule(
+                    module_state_key=block.location,
+                    student=user,
+                    course_id=self.course_id,
+                    state=json.dumps(state))
+                module.save()
+
+            anonymous_id = anonymous_id_for_user(user, self.course_id)
+            item = StudentItem(
+                student_id=anonymous_id,
                 course_id=self.course_id,
-                state=json.dumps(state))
-            module.save()
+                item_id=block.block_id,
+                item_type='sga')
+            item.save()
 
-        anonymous_id = anonymous_id_for_user(user, self.course_id)
-        item = StudentItem(
-            student_id=anonymous_id,
-            course_id=self.course_id,
-            item_id=block.block_id,
-            item_type='sga')
-        item.save()
+            if answer:
+                student_id = block.get_student_item_dict(anonymous_id)
+                submission = submissions_api.create_submission(student_id, answer)
+                if score is not None:
+                    submissions_api.set_score(
+                        submission['uuid'], score, block.max_score())
+            else:
+                submission = None
 
-        if answer:
-            student_id = block.get_student_item_dict(anonymous_id)
-            submission = submissions_api.create_submission(student_id, answer)
-            if score is not None:
-                submissions_api.set_score(
-                    submission['uuid'], score, block.max_score())
-        else:
-            submission = None
+            self.addCleanup(item.delete)
+            self.addCleanup(profile.delete)
+            self.addCleanup(user.delete)
 
-        self.addCleanup(item.delete)
-        self.addCleanup(profile.delete)
-        self.addCleanup(user.delete)
+            if make_state:
+                self.addCleanup(module.delete)
+                return {
+                    'module': module,
+                    'item': item,
+                    'submission': submission
+                }
 
-        if make_state:
-            self.addCleanup(module.delete)
             return {
-                'module': module,
                 'item': item,
                 'submission': submission
             }
-
-        return {
-            'item': item,
-            'submission': submission
-        }
 
     def personalize(self, block, module, item, submission):
         # pylint: disable=unused-argument
@@ -384,7 +387,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         block.save_sga(mock.Mock(body='{}'))
         self.assertEqual(block.display_name, "Staff Graded Assignment")
         self.assertEqual(block.points, 100)
-        self.assertEqual(block.weight, None)
+        self.assertEqual(block.weight, 0)
         block.save_sga(mock.Mock(method="POST", body=json.dumps({
             "display_name": "Test Block",
             "points": str(orig_score),
@@ -650,6 +653,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
             block, "fred",
             filename="bar.txt")
         data = block.get_staff_grading_data(None).json_body  # lint-amnesty, pylint: disable=redefined-outer-name
+        assert data['weight'] == 15
         assignments = sorted(data['assignments'], key=lambda x: x['username'])
 
         barney_assignment, fred_assignment = assignments
@@ -659,7 +663,6 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         assert barney_assignment['fullname'] == 'barney'
         assert barney_assignment['filename'] == 'foo.txt'
         assert barney_assignment['score'] == 10
-        assert barney_assignment['weight'] == 15
         assert barney_assignment['annotated'] == 'foo_corrected.txt'
         assert barney_assignment['comment'] == 'Good work!'
         assert barney_assignment['approved'] is True
@@ -736,8 +739,10 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
             'submission_id': fred['submission']['uuid'],
             'grade': 9,
             'comment': "Good!"}))
-        state = json.loads(StudentModule.objects.get(
-            pk=fred['module'].id).state)
+        student_module = StudentModule.objects.get(pk=fred['module'].id)
+        state = json.loads(student_module.state)
+        assert student_module.grade == 9
+        assert student_module.max_grade == block.max_score()
         self.assertEqual(state['comment'], 'Good!')
         self.assertEqual(state['staff_score'], 9)
 
@@ -781,7 +786,9 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
             'student_id': item.student_id,
         })
         block.remove_grade(request)
-        state = json.loads(StudentModule.objects.get(pk=module.id).state)
+        student_module = StudentModule.objects.get(pk=module.id)
+        state = json.loads(student_module.state)
+        assert student_module.grade == 0
         self.assertEqual(block.get_score(item.student_id), None)
         self.assertEqual(state['comment'], '')
 
