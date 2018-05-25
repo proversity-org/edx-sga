@@ -23,18 +23,19 @@ from django.utils.encoding import force_text  # pylint: disable=import-error
 from django.utils.translation import ugettext_lazy as _  # pylint: disable=import-error
 
 from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
-from student.models import user_by_anonymous_id  # lint-amnesty, pylint: disable=import-error
+from student.models import user_by_anonymous_id, get_user_by_username_or_email  # lint-amnesty, pylint: disable=import-error
 from submissions import api as submissions_api  # lint-amnesty, pylint: disable=import-error
 from submissions.models import StudentItem as SubmissionsStudent  # lint-amnesty, pylint: disable=import-error
 
 from webob.response import Response
 from xblock.core import XBlock  # lint-amnesty, pylint: disable=import-error
 from xblock.exceptions import JsonHandlerError  # lint-amnesty, pylint: disable=import-error
-from xblock.fields import DateTime, Scope, String, Float, Integer  # lint-amnesty, pylint: disable=import-error
+from xblock.fields import DateTime, Scope, String, Float, Integer, Boolean  # lint-amnesty, pylint: disable=import-error
 from xblock.fragment import Fragment  # lint-amnesty, pylint: disable=import-error
+from xblockutils.settings import XBlockWithSettingsMixin
 
 from xmodule.util.duedate import get_extended_due_date  # lint-amnesty, pylint: disable=import-error
-
+from api_teams import ApiTeams
 
 log = logging.getLogger(__name__)
 BLOCK_SIZE = 8 * 1024
@@ -56,7 +57,10 @@ def reify(meth):
     return property(getter)
 
 
-class StaffGradedAssignmentXBlock(XBlock):
+
+@XBlock.wants("user")
+@XBlock.wants("settings")
+class StaffGradedAssignmentXBlock(XBlock, XBlockWithSettingsMixin):
     """
     This block defines a Staff Graded Assignment.  Students are shown a rubric
     and invited to upload a file which is then graded by staff.
@@ -129,6 +133,13 @@ class StaffGradedAssignmentXBlock(XBlock):
         scope=Scope.user_state,
         default=None,
         help=_("When the annotated file was uploaded")
+    )
+
+    team_view = Boolean(
+        display_name=_("Team View"),
+        scope=Scope.settings,
+        default=False,
+        help=_("This option allows to select the standard view or team view.")
     )
 
     def max_score(self):
@@ -214,6 +225,8 @@ class StaffGradedAssignmentXBlock(XBlock):
         if self.show_staff_grading_interface():
             context['is_course_staff'] = True
             self.update_staff_debug_context(context)
+        elif self.team_view:
+            return self.teams_view(context)
 
         fragment = Fragment()
         fragment.add_content(
@@ -226,6 +239,26 @@ class StaffGradedAssignmentXBlock(XBlock):
         fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
         fragment.add_javascript(_resource("static/js/src/jquery.tablesorter.min.js"))
         fragment.initialize_js('StaffGradedAssignmentXBlock')
+        return fragment
+
+    def teams_view(self, context=None):
+        # pylint: disable=no-member
+        """
+        The team view of the modify StaffGradedAssignmentXBlock, shown to students
+        when the team option is activated.
+        """
+        fragment = Fragment()
+        fragment.add_content(
+            render_template(
+                'templates/staff_graded_assignment/teams_view.html',
+                context
+            )
+        )
+        fragment.add_css(_resource("static/css/sga_team_view.css"))
+        fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
+        fragment.add_javascript(_resource("static/js/src/jquery.tablesorter.min.js"))
+        fragment.add_javascript(_resource("static/js/src/sga_team_view.js"))
+        fragment.initialize_js('SgaTeamView')
         return fragment
 
     def update_staff_debug_context(self, context):
@@ -364,6 +397,7 @@ class StaffGradedAssignmentXBlock(XBlock):
                 (field, none_to_empty(getattr(self, field.name)), validator)
                 for field, validator in (
                     (cls.display_name, 'string'),
+                    (cls.team_view, 'string'),
                     (cls.points, 'number'),
                     (cls.weight, 'number'))
             )
@@ -419,6 +453,7 @@ class StaffGradedAssignmentXBlock(XBlock):
                     400, 'Weight must be a positive decimal number'
                 )
         self.weight = weight
+        self.team_view =  data.get('team_view', self.team_view)
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
@@ -532,6 +567,30 @@ class StaffGradedAssignmentXBlock(XBlock):
             state['annotated_filename'],
             require_staff=True
         )
+
+    @XBlock.handler
+    def team_download(self, request, suffix=''):
+        # pylint: disable=unused-argument
+        """
+        Return an assignment file requested by a team member.
+        """
+        require(self.is_team_member(request.params['student_id']))
+        submission = self.get_submission(request.params['student_id'])
+        answer = submission['answer']
+        path = self.file_storage_path(answer['sha1'], answer['filename'])
+        return self.download(
+            path,
+            answer['mimetype'],
+            answer['filename'],
+        )
+
+    @XBlock.handler
+    def get_team_grading_data(self, request, suffix=''):
+        # pylint: disable=unused-argument
+        """
+        Return the html for the staff grading view
+        """
+        return Response(json_body=self.team_grading_data())
 
     def download(self, path, mime_type, filename, require_staff=False):
         """
@@ -704,6 +763,83 @@ class StaffGradedAssignmentXBlock(XBlock):
             )
         )
         return path
+
+    def team_grading_data(self):
+        """
+        Return team member assignment information for display on the
+        grading screen.
+        """
+        members = self.get_teams_members()
+        if not members:
+            return {"assignments":list()}
+
+        course_data = self.staff_grading_data()
+
+        assignments = course_data["assignments"]
+
+        assignments = self.filter_assigments_by_team_members(assignments, members)
+
+        course_data["assignments"] = list(assignments)
+
+        return course_data
+
+    def get_teams_members(self):
+        runtime = self.xmodule_runtime
+        user = runtime.service(self, 'user').get_current_user()
+        course_id = runtime.course_id
+        username = user.opt_attrs['edx-platform.username']
+
+        xblock_settings = self.get_xblock_settings()
+
+        try:
+            user = xblock_settings["username"]
+            password = xblock_settings["password"]
+            client_id = xblock_settings["client_id"]
+            client_secret = xblock_settings["client_secret"]
+        except KeyError:
+            raise
+
+        server_url = settings.LMS_ROOT_URL
+
+        api = ApiTeams(user, password, client_id, client_secret, server_url)
+        team = api.get_user_team(course_id, username)
+        if team:
+            team = team[0]
+            team_id = team["id"]
+            members = api.get_members(team_id)
+            if members:
+                return members
+
+    def filter_assigments_by_team_members(self, assignments, members):
+        """This method compares the team's users with an assigments' list"""
+        for member in members:
+            user = get_user_by_username_or_email(member["user"]["username"])
+            for assignment in assignments:
+                if user == user_by_anonymous_id(assignment["student_id"]):
+                    assignment["profile_image_url"] = self._user_image_url(user)
+                    yield assignment
+
+    def is_team_member(self, student_id):
+        """This methods verifies if the user is a team member """
+        team_data = self.team_grading_data()
+        assignments = team_data["assignments"]
+        for assignment in assignments:
+            if assignment["student_id"] == student_id:
+                return True
+        return False
+
+    def _user_image_url(self, user):
+        """Returns an image url for the current user"""
+        from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user  # pylint: disable=relative-import
+        profile_image_url = get_profile_image_urls_for_user(user)[
+            "full"]
+
+        if profile_image_url.startswith("http"):
+            return profile_image_url
+
+        base_url = settings.LMS_ROOT_URL
+        image_url = "{}{}".format(base_url, profile_image_url)
+        return image_url
 
 
 def _get_sha1(file_descriptor):

@@ -1,0 +1,52 @@
+{% load i18n %}
+<div class="sga-block" data-state="{{ student_state }}"
+     data-max-size="{{ max_file_size }}" data-support-email="{{ support_email }}"
+     data-staff="{{ is_course_staff }}">
+  <script type="text/template" id="sga-grading-tmpl">
+    <h2>Submissions</h2>
+    <% if (assignments.length == 0){ %>
+        <p>No Submissions yet !!</p>
+    <% } else { %>
+    <table class="gridtable tablesorter" id="submissions" >
+      <tbody>
+      <% for (var i = 0; i < assignments.length; i++) { %>
+      <%     var assignment = assignments[i]; %>
+        <tr id="row-<%= assignment.module_id %>"<% if (!assignment.finalized) { %> class="not-finalized"<% } %>>
+          <td >
+            <img src="<%= assignment.profile_image_url %>" alt="" border=3 height=75 width=75></img>
+            <%= assignment.username %>
+          </td>
+          <td >
+            <strong>
+              <% if (assignment.filename) { %>
+              <a href="<%= downloadUrl %>?student_id=<%= assignment.student_id %>">
+                <%= assignment.filename %>
+              </a>
+              <%}%>
+            </strong>
+          </td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table>
+    <%}%>
+
+     <% if (upload_allowed) { %>
+      <p class="upload">
+        <label>
+            {% trans "Submit your assignment" %}
+          <input class="fileupload" type="file" name="assignment" />
+        </label>
+      </p>
+    <% } %>
+
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+
+  </script>
+  <div id="sga-content" style="">
+    {% trans "Loading..." %}
+  </div>
+
+</div>
