@@ -22,6 +22,11 @@ function SgaTeamView(runtime, element) {
 
         var content = $(element).find('#sga-content').html(gradingTemplate(finalState));
 
+        if(finalState.assignments.length>0){
+            $('.icon-toggle').text("+");
+            $(".team-activity-description").animate({height: 'toggle'});
+        }
+
         var fileUpload = $(content).find('.fileupload').fileupload({
             url: uploadUrl,
             add: function(e, data) {
@@ -67,6 +72,12 @@ function SgaTeamView(runtime, element) {
                     });
                 }
             }
+        });
+
+        $('.team-activity-title').click(function(){
+            var text = $('.icon-toggle').text();
+            $('.icon-toggle').text(text == "-" ? "+" : "-");
+            $(".team-activity-description").animate({height: 'toggle'});
         });
 
     }

@@ -25,6 +25,31 @@
     text-align:right;
 }
 
+.team-activity-description{
+    height: auto;
+    overflow:hidden;
+    border-style: outset;
+    padding: 10px;
+    margin: 10px;
+}
+
+.team-activity-title {
+  cursor: pointer;
+  padding-left: 10px;
+  background: #F2F2F2;
+}
+
+.team-activity-title:hover {  
+  background: #BDBDBD;
+}
+
+.icon-toggle{
+    font-size: 28px;
+    font-weight:bold;
+    float: right;
+    margin-right: 10px;
+}
+
 tr{
     border-bottom: 1px solid #d8d8d8;
 }

@@ -142,6 +142,22 @@ class StaffGradedAssignmentXBlock(XBlock, XBlockWithSettingsMixin):
         help=_("This option allows to select the standard view or team view.")
     )
 
+    team_activity_description = String(
+        display_name=_("Team Activity Description"),
+        scope=Scope.settings,
+        default="Set your team activity description",
+        help=_("This contains the description of the activity for every team."),
+        multiline_editor=True,
+        resettable_editor=False
+    )
+
+    team_activity_name = String(
+        display_name=_("Team Activity Name"),
+        scope=Scope.settings,
+        default=None,
+        help=_("The activity name that students can see."),
+    )
+
     def max_score(self):
         """
         Return the maximum score possible.
@@ -247,6 +263,11 @@ class StaffGradedAssignmentXBlock(XBlock, XBlockWithSettingsMixin):
         The team view of the modify StaffGradedAssignmentXBlock, shown to students
         when the team option is activated.
         """
+        context["data_team_activity"] = {
+            "description": self.team_activity_description,
+            "name": self.team_activity_name
+            }
+
         fragment = Fragment()
         fragment.add_content(
             render_template(
@@ -398,6 +419,8 @@ class StaffGradedAssignmentXBlock(XBlock, XBlockWithSettingsMixin):
                 for field, validator in (
                     (cls.display_name, 'string'),
                     (cls.team_view, 'string'),
+                    (cls.team_activity_name, 'string'),
+                    (cls.team_activity_description, 'string'),
                     (cls.points, 'number'),
                     (cls.weight, 'number'))
             )
@@ -454,6 +477,8 @@ class StaffGradedAssignmentXBlock(XBlock, XBlockWithSettingsMixin):
                 )
         self.weight = weight
         self.team_view =  data.get('team_view', self.team_view)
+        self.team_activity_description =  data.get('team_activity_description', self.team_activity_description)
+        self.team_activity_name =  data.get('team_activity_name', self.team_activity_name)
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
