@@ -3,10 +3,11 @@
      data-max-size="{{ max_file_size }}" data-support-email="{{ support_email }}"
      data-staff="{{ is_course_staff }}">
   <script type="text/template" id="sga-grading-tmpl">
-    <h2>Submissions</h2>
-    <% if (assignments.length == 0){ %>
-        <p>No Submissions yet !!</p>
-    <% } else { %>
+    <h2 class="team-activity-title">Team Activity - {{data_team_activity.name}} <span class="icon-toggle">-</span></h2>
+    <div class="team-activity-description">
+      <p>{{data_team_activity.description}}</p>
+    </div>
+    <% if (assignments.length > 0){ %>
     <table class="gridtable tablesorter" id="submissions" >
       <tbody>
       <% for (var i = 0; i < assignments.length; i++) { %>
