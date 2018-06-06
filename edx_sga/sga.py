@@ -82,7 +82,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
     has_score = True
     icon_class = 'problem'
     STUDENT_FILEUPLOAD_MAX_SIZE = 4 * 1000 * 1000  # 4 MB
-    editable_fields = ('team_view', 'display_name', 'points', 'weight', 'showanswer', 'solution')
+    editable_fields = ('team_view', 'display_name', 'points', 'weight', 'showanswer', 'solution', 'activity_description')
 
     display_name = String(
         display_name=_("Display Name"),
@@ -157,6 +157,15 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         scope=Scope.settings,
         default=False,
         help=_("This option allows to select the standard view or team view.")
+    )
+
+    activity_description = String(
+        display_name=_("Activity Description"),
+        scope=Scope.settings,
+        default="Set your team activity description",
+        help=_("This contains the description of the activity for every team."),
+        multiline_editor=True,
+        resettable_editor=False
     )
 
     @classmethod
@@ -642,6 +651,10 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         The team view of the modify StaffGradedAssignmentXBlock, shown to students
         when the team option is activated.
         """
+        context["data_team_activity"] = {
+            "description": self.activity_description,
+            "name": self.display_name
+            }
         fragment = Fragment()
         fragment.add_content(
             render_template(
