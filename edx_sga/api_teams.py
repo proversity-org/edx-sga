@@ -1,14 +1,12 @@
 """
 Api for teams
 """
-import os
 import logging
 import requests
 from oauthlib.oauth2 import LegacyApplicationClient
 from requests_oauthlib import OAuth2Session
 
 LOG = logging.getLogger(__name__)
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 
 class ApiTeams(object):  #pylint: disable=too-few-public-methods
@@ -38,8 +36,6 @@ class ApiTeams(object):  #pylint: disable=too-few-public-methods
                                   client_secret=self.client_secret,
                                   username=self.username,
                                   password=self.password)
-
-        LOG.info("The acces token is: %s", token["access_token"])
 
         return token['access_token']
 
