@@ -903,14 +903,14 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                     'annotated': force_text(state.get("annotated_filename", '')),
                     'comment': force_text(state.get("comment", '')),
                     'finalized': is_finalized_submission(submission_data=submission),
-                    'team': self.get_team_name(student_module.student.username)
+                    'team': self.get_team_name(student_module.student.username),
                 }
 
         return {
             'assignments': list(get_student_data()),
             'max_score': self.max_score(),
             'display_name': force_text(self.display_name),
-            'teams_view': self.team_view
+            'teams_view': self.team_view,
         }
 
     def get_sorted_submissions(self):
@@ -1112,19 +1112,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         course_id = runtime.course_id
         username = user.opt_attrs['edx-platform.username']
 
-        xblock_settings = self.get_xblock_settings()
-
-        try:
-            user = xblock_settings["username"]
-            password = xblock_settings["password"]
-            client_id = xblock_settings["client_id"]
-            client_secret = xblock_settings["client_secret"]
-        except KeyError:
-            raise
-
-        server_url = settings.LMS_ROOT_URL
-
-        api = ApiTeams(user, password, client_id, client_secret, server_url)
+        api = self.api_rocket_chat()
         team = api.get_user_team(course_id, username)
         if team:
             team = team[0]
@@ -1173,6 +1161,15 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         user = runtime.service(self, 'user').get_current_user()
         course_id = runtime.course_id
 
+        api = self.api_rocket_chat()
+        team = api.get_user_team(course_id, username)
+        if team:
+            team = team[0]
+            return "-".join([team["topic_id"], team["name"]])
+        return None
+
+    def api_rocket_chat(self):
+
         xblock_settings = self.get_xblock_settings()
 
         try:
@@ -1185,13 +1182,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
 
         server_url = settings.LMS_ROOT_URL
 
-        api = ApiTeams(user, password, client_id, client_secret, server_url)
-        team = api.get_user_team(course_id, username)
-        if team:
-            team = team[0]
-            return "-".join([team["topic_id"], team["name"]])
-        return None
-
+        return ApiTeams(user, password, client_id, client_secret, server_url)
 
 def _resource(path):  # pragma: NO COVER
     """
