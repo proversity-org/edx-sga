@@ -71,6 +71,9 @@
         <th class="header">{% trans "Filename" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Uploaded" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Submitted" %} <i class="icon fa fa-sort"/></th>
+        <% if (teams_view) {%>
+        <th class="header">{% trans "Team Name" %} <i class="icon fa fa-sort"/></th>
+        <%}%>
         <th class="header">{% trans "Grade" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Instructor's comments" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Annotated" %} <i class="icon fa fa-sort"/></th>
@@ -98,6 +101,9 @@
               {% trans "No" %}
             <% } %>
           </td>
+          <% if (teams_view) {%>
+          <td id="team-name"><%= assignment.team %></td>
+          <%}%>
           <td>
             <% if (assignment.score !== null) { %>
               <%= assignment.score %> /
@@ -136,7 +142,10 @@
         </tr>
       <% } %>
       </tbody>
-    </table>
+    </table><br>
+    <% if (teams_view) {%>
+      <input type="text" id="filter-teams" placeholder="Filter for team names.."></input>
+    <%}%>
   </script>
 
   <div aria-hidden="true" class="wrap-instructor-info">

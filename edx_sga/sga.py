@@ -902,13 +902,15 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                     'may_grade': instructor or not approved,
                     'annotated': force_text(state.get("annotated_filename", '')),
                     'comment': force_text(state.get("comment", '')),
-                    'finalized': is_finalized_submission(submission_data=submission)
+                    'finalized': is_finalized_submission(submission_data=submission),
+                    'team': self.get_team_name(student_module.student.username)
                 }
 
         return {
             'assignments': list(get_student_data()),
             'max_score': self.max_score(),
-            'display_name': force_text(self.display_name)
+            'display_name': force_text(self.display_name),
+            'teams_view': self.team_view
         }
 
     def get_sorted_submissions(self):
@@ -1161,6 +1163,35 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         base_url = settings.LMS_ROOT_URL
         image_url = "{}{}".format(base_url, profile_image_url)
         return image_url
+
+    def get_team_name(self, username):
+
+        if not self.team_view:
+            return None
+
+        runtime = self.xmodule_runtime
+        user = runtime.service(self, 'user').get_current_user()
+        course_id = runtime.course_id
+
+        xblock_settings = self.get_xblock_settings()
+
+        try:
+            user = xblock_settings["username"]
+            password = xblock_settings["password"]
+            client_id = xblock_settings["client_id"]
+            client_secret = xblock_settings["client_secret"]
+        except KeyError:
+            raise
+
+        server_url = settings.LMS_ROOT_URL
+
+        api = ApiTeams(user, password, client_id, client_secret, server_url)
+        team = api.get_user_team(course_id, username)
+        if team:
+            team = team[0]
+            return "-".join([team["topic_id"], team["name"]])
+        return None
+
 
 def _resource(path):  # pragma: NO COVER
     """
