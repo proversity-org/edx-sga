@@ -212,6 +212,30 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             $("#submissions").trigger("update");
             var sorting = [[4,1], [1,0]];
             $("#submissions").trigger("sorton",[sorting]);
+
+            if(data.teams_view){
+              filterTeamNames();
+            };
+        }
+
+        function filterTeamNames(){
+          var input = $("#filter-teams");
+          input.keyup(function(){
+            var filter = input.val().toUpperCase();
+            var table = $(".gridtable");
+            var tr = table.find($("tr"));
+            for (i = 1; i < tr.length; i++) {
+              var td = $(tr[i]).find("#team-name");
+              if (td) {
+                if (td.text().toUpperCase().indexOf(filter) > -1) {
+                  tr[i].style.display = "";
+                } else {
+                  tr[i].style.display = "none";
+                }
+              }
+            };
+
+          });
         }
 
         function isStaff() {
