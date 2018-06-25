@@ -1112,7 +1112,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         course_id = runtime.course_id
         username = user.opt_attrs['edx-platform.username']
 
-        api = self.api_rocket_chat()
+        api = self.api_teams()
         team = api.get_user_team(course_id, username)
         if team:
             team = team[0]
@@ -1153,7 +1153,11 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         return image_url
 
     def get_team_name(self, username):
-
+        """
+        Returns the team name for the given username.
+        There is joining of topic_id and team_name since
+        it's possible the same team_name in other topic.
+        """
         if not self.team_view:
             return None
 
@@ -1161,15 +1165,17 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         user = runtime.service(self, 'user').get_current_user()
         course_id = runtime.course_id
 
-        api = self.api_rocket_chat()
+        api = self.api_teams()
         team = api.get_user_team(course_id, username)
         if team:
             team = team[0]
             return "-".join([team["topic_id"], team["name"]])
         return None
 
-    def api_rocket_chat(self):
-
+    def api_teams(self):
+        """
+        This returns an API teams instance
+        """
         xblock_settings = self.get_xblock_settings()
 
         try:
