@@ -614,6 +614,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         """
         return Response(json_body=self.team_grading_data())
 
+    @XBlock.supports('multi_device') # Mark as mobile-friendly
     def student_view(self, context=None):
         # pylint: disable=no-member
         """
