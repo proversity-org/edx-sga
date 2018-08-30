@@ -132,17 +132,16 @@
 
 @media (max-width: 767px) {
 
+  table#submissions thead tr {
+    display: flex;
+    flex-wrap: wrap;
+  }
 
-    table#submissions thead tr {
-        display: flex;
-      flex-wrap: wrap;
-    }
+  table#submissions thead tr th.header {
+    width: 100%;
+  }
 
-    table#submissions thead tr th.header {
-        with: 100%;
-    }
-
-    div.wrap-instructor-info {
-        display: block !important;
-    }
+  div.wrap-instructor-info {
+    display: block !important;
+  }
 }
