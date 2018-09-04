@@ -130,16 +130,36 @@
   color: red;
 }
 
+@media (min-width: 768px) {
+  table#submissions {
+    display: block;
+  }
+
+  table.gridtable.tablesorter.table-mobile {
+    display: none;
+  }
+}
+
 @media (max-width: 767px) {
 
-  table#submissions thead tr {
+  table.gridtable.tablesorter.table-mobile tbody tr {
     display: flex;
     flex-wrap: wrap;
+    border-bottom: 2px solid blue;
   }
 
-  table#submissions thead tr th.header {
+  table.gridtable.tablesorter.table-mobile tbody tr td {
     width: 100%;
   }
+
+  table.gridtable.tablesorter.table-mobile {
+    display: block;
+  }
+
+  table#submissions {
+    display: none;
+  }
+
 
   div.wrap-instructor-info {
     display: block !important;
