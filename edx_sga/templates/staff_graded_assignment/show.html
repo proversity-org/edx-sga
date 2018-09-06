@@ -63,7 +63,11 @@
 
   {% if is_course_staff %}
   <script type="text/template" id="sga-grading-tmpl">
-     <table class="gridtable tablesorter" id="submissions">
+    <% if (teams_view) {%>
+      <input type="text" id="filter-teams" placeholder="Filter for team names.."><br></input>
+      <br/>
+    <%}%>
+    <table class="gridtable tablesorter" id="submissions">
       <thead>
       <tr>
         <th class="header">{% trans "Username" %} <i class="icon fa fa-sort"/></th>
