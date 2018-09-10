@@ -63,6 +63,10 @@
 
   {% if is_course_staff %}
   <script type="text/template" id="sga-grading-tmpl">
+    <% if (teams_view) {%>
+      <input type="text" id="filter-teams" placeholder="Filter for team names.."><br></input>
+      <br/>
+    <%}%>
     <table class="gridtable tablesorter" id="submissions">
       <thead>
       <tr>
@@ -112,6 +116,70 @@
             <% if (assignment.annotated && assignment.annotated != "None") { %>
               <a href="<%= annotatedUrl %>?module_id=<%= assignment.module_id %>">
                 <%= assignment.annotated %>
+              </a>
+            <% } %>
+          </td>
+          <td>
+            <% if (assignment.may_grade) { %>
+              <a class="enter-grade-button button" href="#enter-grade-{{ id }}">
+                <% if (assignment.needs_approval) { %>
+                  {% trans "Approve grade" %}
+                <% } else { %>
+                  {% trans "Enter grade" %}
+                <% } %>
+              </a>
+           <% } %>
+          </td>
+          <td>
+            <div class="upload">
+              <label>{% trans "Upload annotated file" %}
+                <input class="fileupload" type="file" name="annotated"/>
+              </label>
+            </div>
+          </td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table>
+    <table class="gridtable tablesorter table-mobile" >
+      <thead>
+      </thead>
+      <tbody>
+      <% for (var i = 0; i < assignments.length; i++) { %>
+      <%     var assignment = assignments[i]; %>
+        <tr id="row-<%= assignment.module_id %>"<% if (!assignment.finalized) { %> class="not-finalized"<% } %>>
+          <td> <b>{% trans "Username" %}:</b> <%= assignment.username %></td>
+          <td> <b>{% trans "Name" %}:</b> <%= assignment.fullname %></td>
+          <td>
+            <% if (assignment.filename) { %>
+              <a href="<%= downloadUrl %>?student_id=<%= assignment.student_id %>">
+                <b>{% trans "Filename" %}:</b> <%= assignment.filename %>
+              </a>
+            <% } %>
+          </td>
+          <td><b>{% trans "Uploaded" %}:</b> <%= assignment.timestamp %></td>
+          <td>
+            <% if (assignment.finalized) { %>
+              <b>{% trans "Submitted" %}:</b> {% trans "Yes" %}
+            <% } else { %>
+              <b>{% trans "Submitted" %}:</b> {% trans "No" %}
+            <% } %>
+          </td>
+          <td>
+            <b>{% trans "Grade" %}:</b>
+            <% if (assignment.score !== null) { %>
+              <%= assignment.score %> /
+              <%= max_score %>
+              <% if (! assignment.approved) { %>
+                ({% trans "Awaiting instructor approval" %})
+              <% } %>
+            <% } %>
+          </td>
+          <td> <b>{% trans "Instructor's comments" %}:</b> <%= assignment.comment %></td>
+          <td>
+            <% if (assignment.annotated && assignment.annotated != "None") { %>
+              <a href="<%= annotatedUrl %>?module_id=<%= assignment.module_id %>">
+                <b>{% trans "Annotated" %}:</b> <%= assignment.annotated %>
               </a>
             <% } %>
           </td>
