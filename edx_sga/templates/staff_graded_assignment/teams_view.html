@@ -31,8 +31,25 @@
       </tbody>
     </table>
     <%}%>
-
-     <% if (upload_allowed) { %>
+    <% if (uploaded) { %>
+      <div class="sequential-status-message">
+        <p>
+          <% if (graded) { %>
+            {% blocktrans %}Your score is <%= graded.score %> / <%= max_score %>{% endblocktrans %}<br/>
+            <% if (graded.comment) { %>
+              <b>{% trans "Instructor comment" %}</b> <%= graded.comment %><br/>
+            <% } %>
+            <% if (annotated) { %>
+              <b>{% trans "Annotated file from instructor" %}</b>
+              <a href="<%= annotatedUrl %>"><%= annotated.filename %></a><br/>
+            <% } %>
+          <% } else if (uploaded) { %>
+            {% trans "This assignment has not yet been graded." %}
+          <% } %>
+        </p>
+      </div>
+    <% } %>
+    <% if (upload_allowed) { %>
       <p class="upload">
         <label>
             {% trans "Submit your assignment" %}
